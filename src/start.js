@@ -57,7 +57,7 @@ async function main() {
 
   try {
     debug(`Waiting for port ${port} to be used...`);
-    await waitUntilUsedOnHost(port, host, 250, 10000);
+    await waitUntilUsedOnHost(port, host, 250, 20000);
     info('Spawned Turbo Cache Server:');
     info(`  PID: ${pid}`);
     info(`  Listening on port: ${port}`);

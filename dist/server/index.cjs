@@ -41400,7 +41400,7 @@ exports["default"] = once;
 
 /***/ }),
 
-/***/ 23642:
+/***/ 85170:
 /***/ ((module) => {
 
 var SimpleQueue = function(worker, callback, done, concurrent){
@@ -157201,7 +157201,7 @@ module.exports = S3BlobStore;
 var Readable = (__nccwpck_require__(12781).Readable);
 var util = __nccwpck_require__(73837);
 var debug = __nccwpck_require__(84858)('s3-download-stream');
-var SimpleQueue = __nccwpck_require__(23642);
+var SimpleQueue = __nccwpck_require__(85170);
 var clone = __nccwpck_require__(21912);
 util.inherits(S3Readable, Readable);
 

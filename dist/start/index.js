@@ -6903,7 +6903,7 @@ async function main() {
 
   try {
     (0,core.debug)(`Waiting for port ${port} to be used...`);
-    await (0,tcp_port_used/* waitUntilUsedOnHost */.S7)(port, host, 250, 10000);
+    await (0,tcp_port_used/* waitUntilUsedOnHost */.S7)(port, host, 250, 20000);
     (0,core.info)('Spawned Turbo Cache Server:');
     (0,core.info)(`  PID: ${pid}`);
     (0,core.info)(`  Listening on port: ${port}`);
