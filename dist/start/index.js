@@ -6927,17 +6927,23 @@ const logger = new Logger(process.env.LOG_LEVEL);
 const start_dirname = (0,external_node_path_namespaceObject.dirname)((0,external_url_namespaceObject.fileURLToPath)(import.meta.url));
 
 function validateEnv() {
-  const required = ['STORAGE_PROVIDER', 'STORAGE_PATH'];
+  const required = ['STORAGE_PROVIDER', 'STORAGE_PATH', 'HOST'];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    const error = `Missing required environment variables: ${missing.join(', ')}`;
+    logger.error('Failed to start server', { error });
+    (0,core.setFailed)(error);
+    process.exit(1);
   }
 }
 
 async function getPort() {
   if (port) {
     if (port < 0 || port > 65535) {
-      throw new Error(`Invalid port number: ${port}`);
+      const error = `Invalid port number: ${port}`;
+      logger.error('Failed to start server', { error });
+      (0,core.setFailed)(error);
+      process.exit(1);
     }
     logger.debug('Using specified port', { port: port });
     return port;
@@ -6952,6 +6958,11 @@ async function getPort() {
 
 async function main() {
   try {
+    // Set required environment variables from inputs
+    process.env.STORAGE_PROVIDER = storageProvider;
+    process.env.STORAGE_PATH = storagePath;
+    process.env.HOST = host;
+    
     validateEnv();
     const port = await getPort();
 
@@ -6976,6 +6987,7 @@ async function main() {
           TURBO_TOKEN: token,
           STORAGE_PROVIDER: storageProvider,
           STORAGE_PATH: storagePath,
+          TURBO_TEAM: teamId,
         },
       },
     );
@@ -6983,6 +6995,7 @@ async function main() {
     subprocess.on('error', (err) => {
       logger.error('Failed to start subprocess', { error: err.message });
       (0,core.setFailed)(`Failed to start Turbo Cache Server: ${err.message}`);
+      process.exit(1);
     });
 
     subprocess.stdout?.on('data', (data) => logger.debug('Server stdout', { data: data.toString() }));
@@ -7020,7 +7033,10 @@ async function main() {
       }
       const errors = await readLog('err');
       const errorMessage = errors ? `\nServer error log:\n${indentMultiline(errors)}` : '';
-      throw new Error(`Turbo Cache Server failed to start on port: ${port}${errorMessage}`);
+      const error = `Turbo Cache Server failed to start on port: ${port}${errorMessage}`;
+      logger.error('Failed to start server', { error });
+      (0,core.setFailed)(error);
+      process.exit(1);
     }
   } catch (error) {
     logger.error('Failed to start server', { error: error.message });
@@ -7029,7 +7045,11 @@ async function main() {
   }
 }
 
-main().catch(core.setFailed);
+main().catch((error) => {
+  logger.error('Unhandled error in main', { error: error.message });
+  (0,core.setFailed)(error.message);
+  process.exit(1);
+});
 
 })();
 

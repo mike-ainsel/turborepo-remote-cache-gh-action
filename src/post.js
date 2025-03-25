@@ -24,13 +24,13 @@ async function post() {
         process.kill(pid, 'SIGKILL');
       }
     } else {
-      logger.error('Server process not found', { 
+      const error = 'Server process not found';
+      logger.error(error, { 
         pid,
         message: 'This may indicate a configuration or server crash',
       });
-      setFailed(
-        `Turbo Cache Server with PID ${pid} was not running. This may indicate a configuration or server crash.`,
-      );
+      setFailed(error);
+      process.exit(1);
     }
 
     const [out, err] = await Promise.all([readLog('out'), readLog('err')]);
@@ -45,10 +45,12 @@ async function post() {
   } catch (error) {
     logger.error('Error during cleanup', { error: error.message });
     setFailed(error.message);
+    process.exit(1);
   }
 }
 
 post().catch((error) => {
   logger.error('Unhandled error in post cleanup', { error: error.message });
   setFailed(error.message);
+  process.exit(1);
 });
