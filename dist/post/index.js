@@ -3520,14 +3520,6 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/.pnpm/@actions+core@1.11.1/node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(407);
-;// CONCATENATED MODULE: ./src/indentMultiline.js
-function indentMultiline(message, spaces = 2) {
-  const output = [];
-  message.split('\n').forEach((line) => {
-    output.push(' '.repeat(spaces) + line);
-  });
-  return output.join('\n');
-}
 ;// CONCATENATED MODULE: external "node:fs"
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
 ;// CONCATENATED MODULE: external "node:fs/promises"
@@ -3566,6 +3558,68 @@ function pidIsRunning(pid) {
     return false;
   }
 }
+;// CONCATENATED MODULE: ./src/logger.js
+
+
+const LOG_LEVELS = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3,
+};
+
+class Logger {
+  constructor(level = 'INFO') {
+    this.level = LOG_LEVELS[level.toUpperCase()] ?? LOG_LEVELS.INFO;
+  }
+
+  _log(level, message, data = {}) {
+    if (level >= this.level) {
+      const timestamp = new Date().toISOString();
+      const logEntry = {
+        timestamp,
+        level: Object.keys(LOG_LEVELS).find(key => LOG_LEVELS[key] === level),
+        message,
+        ...data,
+      };
+
+      const logMessage = JSON.stringify(logEntry);
+
+      switch (level) {
+      case LOG_LEVELS.DEBUG:
+        (0,core.debug)(logMessage);
+        break;
+      case LOG_LEVELS.INFO:
+        (0,core.info)(logMessage);
+        break;
+      case LOG_LEVELS.WARN:
+        (0,core.warning)(logMessage);
+        break;
+      case LOG_LEVELS.ERROR:
+        (0,core.error)(logMessage);
+        break;
+      }
+    }
+  }
+
+  debug(message, data = {}) {
+    this._log(LOG_LEVELS.DEBUG, message, data);
+  }
+
+  info(message, data = {}) {
+    this._log(LOG_LEVELS.INFO, message, data);
+  }
+
+  warn(message, data = {}) {
+    this._log(LOG_LEVELS.WARN, message, data);
+  }
+
+  error(message, data = {}) {
+    this._log(LOG_LEVELS.ERROR, message, data);
+  }
+}
+
+const logger = new Logger(process.env.LOG_LEVEL); 
 ;// CONCATENATED MODULE: ./src/post.js
 
 
@@ -3573,31 +3627,54 @@ function pidIsRunning(pid) {
 
 
 async function post() {
-  const pid = parseInt((0,core.getState)('pid'));
+  try {
+    const pid = parseInt((0,core.getState)('pid'));
 
-  if (isNaN(pid)) return;
+    if (isNaN(pid)) {
+      logger.warn('No PID found in state, skipping cleanup');
+      return;
+    }
 
-  if (pidIsRunning(pid)) {
-    (0,core.info)(`Stopping Turbo Cache Server with PID ${pid}`);
-    process.kill(pid);
-  } else {
-    (0,core.setFailed)(
-      `Turbo Cache Server with PID ${pid} was not running. This may indicate a configuration or server crash.`,
-    );
-  }
+    if (pidIsRunning(pid)) {
+      logger.info('Stopping Turbo Cache Server', { pid });
+      process.kill(pid);
+      
+      // Wait a moment for the process to terminate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (pidIsRunning(pid)) {
+        logger.warn('Server did not terminate gracefully, forcing kill', { pid });
+        process.kill(pid, 'SIGKILL');
+      }
+    } else {
+      logger.error('Server process not found', { 
+        pid,
+        message: 'This may indicate a configuration or server crash',
+      });
+      (0,core.setFailed)(
+        `Turbo Cache Server with PID ${pid} was not running. This may indicate a configuration or server crash.`,
+      );
+    }
 
-  const [out, err] = await Promise.all([readLog('out'), readLog('err')]);
+    const [out, err] = await Promise.all([readLog('out'), readLog('err')]);
 
-  (0,core.debug)('Server logged the following output while running:');
-  (0,core.debug)(indentMultiline(out));
+    if (out) {
+      logger.debug('Server output log', { output: out });
+    }
 
-  if (err) {
-    (0,core.debug)('Server logged the following error while running:');
-    (0,core.debug)(indentMultiline(err));
+    if (err) {
+      logger.error('Server error log', { error: err });
+    }
+  } catch (error) {
+    logger.error('Error during cleanup', { error: error.message });
+    (0,core.setFailed)(error.message);
   }
 }
 
-post().catch(core.setFailed);
+post().catch((error) => {
+  logger.error('Unhandled error in post cleanup', { error: error.message });
+  (0,core.setFailed)(error.message);
+});
 
 })();
 

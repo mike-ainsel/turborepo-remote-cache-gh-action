@@ -6849,7 +6849,70 @@ function pidIsRunning(pid) {
     return false;
   }
 }
+;// CONCATENATED MODULE: ./src/logger.js
+
+
+const LOG_LEVELS = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3,
+};
+
+class Logger {
+  constructor(level = 'INFO') {
+    this.level = LOG_LEVELS[level.toUpperCase()] ?? LOG_LEVELS.INFO;
+  }
+
+  _log(level, message, data = {}) {
+    if (level >= this.level) {
+      const timestamp = new Date().toISOString();
+      const logEntry = {
+        timestamp,
+        level: Object.keys(LOG_LEVELS).find(key => LOG_LEVELS[key] === level),
+        message,
+        ...data,
+      };
+
+      const logMessage = JSON.stringify(logEntry);
+
+      switch (level) {
+      case LOG_LEVELS.DEBUG:
+        (0,core.debug)(logMessage);
+        break;
+      case LOG_LEVELS.INFO:
+        (0,core.info)(logMessage);
+        break;
+      case LOG_LEVELS.WARN:
+        (0,core.warning)(logMessage);
+        break;
+      case LOG_LEVELS.ERROR:
+        (0,core.error)(logMessage);
+        break;
+      }
+    }
+  }
+
+  debug(message, data = {}) {
+    this._log(LOG_LEVELS.DEBUG, message, data);
+  }
+
+  info(message, data = {}) {
+    this._log(LOG_LEVELS.INFO, message, data);
+  }
+
+  warn(message, data = {}) {
+    this._log(LOG_LEVELS.WARN, message, data);
+  }
+
+  error(message, data = {}) {
+    this._log(LOG_LEVELS.ERROR, message, data);
+  }
+}
+
+const logger = new Logger(process.env.LOG_LEVEL); 
 ;// CONCATENATED MODULE: ./src/start.js
+
 
 
 
@@ -6863,66 +6926,106 @@ function pidIsRunning(pid) {
 
 const start_dirname = (0,external_node_path_namespaceObject.dirname)((0,external_url_namespaceObject.fileURLToPath)(import.meta.url));
 
+function validateEnv() {
+  const required = ['STORAGE_PROVIDER', 'STORAGE_PATH'];
+  const missing = required.filter(key => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+
 async function getPort() {
   if (port) {
-    (0,core.debug)(`Using specified port: ${port}`);
+    if (port < 0 || port > 65535) {
+      throw new Error(`Invalid port number: ${port}`);
+    }
+    logger.debug('Using specified port', { port: port });
     return port;
   }
 
-  (0,core.debug)('Getting available port...');
+  logger.debug('Getting available port...');
   const freePort = await getPorts();
-  (0,core.debug)(`Available port found: ${freePort}`);
+  logger.debug('Available port found', { port: freePort });
 
   return freePort;
 }
 
 async function main() {
-  const port = await getPort();
-
-  (0,core.debug)('Starting Turbo Cache Server...');
-  const subprocess = (0,external_node_child_process_namespaceObject.spawn)(
-    'node',
-    [(0,external_node_path_namespaceObject.resolve)(start_dirname, '..', 'start_and_log')],
-    {
-      detached: true,
-      stdio: 'pipe',
-      env: {
-        ...process.env,
-        HOST: host,
-        PORT: port.toString(),
-        TURBO_TOKEN: token,
-        STORAGE_PROVIDER: storageProvider,
-        STORAGE_PATH: storagePath,
-      },
-    },
-  );
-
-  subprocess.stdout?.on('data', (data) => (0,core.debug)(data.toString()));
-  subprocess.stderr?.on('data', (data) => (0,core.debug)(data.toString()));
-  const pid = subprocess.pid?.toString();
-
   try {
-    (0,core.debug)(`Waiting for port ${port} to be used...`);
-    await (0,tcp_port_used/* waitUntilUsedOnHost */.S7)(port, host, 250, 20000);
-    (0,core.info)('Spawned Turbo Cache Server:');
-    (0,core.info)(`  PID: ${pid}`);
-    (0,core.info)(`  Listening on port: ${port}`);
-    (0,core.saveState)('pid', subprocess.pid?.toString());
+    validateEnv();
+    const port = await getPort();
 
-    (0,core.debug)('Export environment variables...');
-    (0,core.exportVariable)('TURBO_API', `http://${host}:${port}`);
-    (0,core.exportVariable)('TURBO_TOKEN', token);
-    (0,core.exportVariable)('TURBO_TEAM', teamId);
+    logger.info('Starting Turbo Cache Server...', {
+      host: host,
+      port,
+      storageProvider: storageProvider,
+      storagePath: storagePath,
+      teamId: teamId,
+    });
 
-    process.exit(0);
-  } catch (e) {
-    if (pidIsRunning(pid)) {
-      (0,core.debug)(`Timed out while waiting for Turbo Cache Server, yet process is running. Stopping PID: ${pid}...`);
-      process.kill(pid);
+    const subprocess = (0,external_node_child_process_namespaceObject.spawn)(
+      process.execPath,
+      [(0,external_node_path_namespaceObject.resolve)(start_dirname, '..', 'start_and_log')],
+      {
+        detached: true,
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          HOST: host,
+          PORT: port.toString(),
+          TURBO_TOKEN: token,
+          STORAGE_PROVIDER: storageProvider,
+          STORAGE_PATH: storagePath,
+        },
+      },
+    );
+
+    subprocess.on('error', (err) => {
+      logger.error('Failed to start subprocess', { error: err.message });
+      (0,core.setFailed)(`Failed to start Turbo Cache Server: ${err.message}`);
+    });
+
+    subprocess.stdout?.on('data', (data) => logger.debug('Server stdout', { data: data.toString() }));
+    subprocess.stderr?.on('data', (data) => logger.debug('Server stderr', { data: data.toString() }));
+    const pid = subprocess.pid?.toString();
+
+    try {
+      logger.debug(`Waiting for port ${port} to be used...`);
+      await (0,tcp_port_used/* waitUntilUsedOnHost */.S7)(port, host, 250, 20000);
+      logger.info('Spawned Turbo Cache Server', {
+        pid,
+        port,
+        host: host,
+      });
+      (0,core.saveState)('pid', subprocess.pid?.toString());
+
+      logger.debug('Export environment variables...');
+      (0,core.exportVariable)('TURBO_API', `http://${host}:${port}`);
+      (0,core.exportVariable)('TURBO_TOKEN', token);
+      (0,core.exportVariable)('TURBO_TEAM', teamId);
+
+      process.on('SIGTERM', async () => {
+        if (subprocess.pid) {
+          logger.info('Shutting down Turbo Cache Server', { pid: subprocess.pid });
+          process.kill(subprocess.pid);
+        }
+        process.exit(0);
+      });
+
+      process.exit(0);
+    } catch (e) {
+      if (pidIsRunning(pid)) {
+        logger.warn('Timed out while waiting for Turbo Cache Server, yet process is running', { pid });
+        process.kill(pid);
+      }
+      const errors = await readLog('err');
+      const errorMessage = errors ? `\nServer error log:\n${indentMultiline(errors)}` : '';
+      throw new Error(`Turbo Cache Server failed to start on port: ${port}${errorMessage}`);
     }
-    const errors = await readLog('err');
-    const errorMessage = errors ? `\nServer error log:\n${indentMultiline(errors)}` : '';
-    throw new Error(`Turbo Cache Server failed to start on port: ${port}${errorMessage}`);
+  } catch (error) {
+    logger.error('Failed to start server', { error: error.message });
+    (0,core.setFailed)(error.message);
+    process.exit(1);
   }
 }
 

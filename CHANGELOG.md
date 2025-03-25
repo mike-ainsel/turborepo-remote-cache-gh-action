@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## V2.1.0
+
+### Added
+- Structured logging system with timestamps and log levels
+- Improved error handling and reporting across all components
+- Graceful process shutdown with timeout and fallback to SIGKILL
+- Better process management and cleanup
+- Environment variable validation
+- Port number validation
+
+### Changed
+- Updated Node.js path resolution to use `process.execPath` for better reliability
+- Improved logging format to be more consistent and machine-readable
+- Enhanced error messages with more context and structured data
+- Added proper cleanup handlers for SIGTERM signals
+
+### Fixed
+- Process cleanup reliability in post-action
+- Potential race conditions during server shutdown
+- Missing error context in various failure scenarios
+
 ## V2
 
 ### BREAKING
