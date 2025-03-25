@@ -87,3 +87,54 @@ jobs:
           
           # The token will be automatically exported by the action
           # No need to manually extract and export it
+
+  test-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test Action with S3
+        uses: ./
+        with:
+          storage-provider: s3
+          storage-path: ${{ secrets.AWS_S3_BUCKET }}
+          team-id: test-team
+          host: 127.0.0.1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
+
+      - name: Test Action with Azure
+        uses: ./
+        with:
+          storage-provider: azure
+          storage-path: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          team-id: test-team
+          host: 127.0.0.1
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCESS_KEY }}
+
+      - name: Test Action with GCS
+        uses: ./
+        with:
+          storage-provider: gcs
+          storage-path: ${{ secrets.GCS_BUCKET }}
+          team-id: test-team
+          host: 127.0.0.1
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}

@@ -1,6 +1,6 @@
 name: 'Turbo Remote Cache'
 description: 'GitHub Action for Turborepo Remote Cache'
-author: 'Vladimir'
+author: 'Vladimir Gorej'
 branding:
   icon: 'zap'
   color: 'blue'
@@ -21,7 +21,9 @@ inputs:
   port:
     description: 'Port to bind the server to'
     required: false
+  token:
+    description: 'Turborepo token'
+    required: true
 runs:
   using: 'node20'
-  main: 'dist/start.js'
-  post: 'dist/stop.js'
+  main: 'dist/start/index.js'
