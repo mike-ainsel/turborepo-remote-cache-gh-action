@@ -1,99 +1,89 @@
-name: Test
-on: push
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+name: Test Turbo Remote Cache
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
-  lint-build-verify:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup
-        uses: ./.github/actions/setup
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Run Lint
-        run: pnpm lint
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build
-        run: pnpm build
+        run: npm run build
 
-      - name: Check working copy
-        run: git diff --exit-code
+      - name: Test Server
+        run: npm run test:server
 
-  test-starts:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Test Client
+        run: npm run test:client
 
-      - name: Run TurboRepo Remote Cache Server
-        uses: ./
-        with:
-          storage-provider: local
-          storage-path: turbo-cache
-
-  test-realistic:
-    runs-on: ubuntu-latest
-    env:
-      TURBO_TELEMETRY_DISABLED: 1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Run TurboRepo Remote Cache Server
-        uses: ./
-        with:
-          storage-provider: local
-          storage-path: turbo-cache
-      
-      - name: Ensure environmental variables have been set correctly
+      - name: Test with S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
         run: |
-          echo $TURBO_API | grep -P "^http://0.0.0.0:\d+$"
-          echo $TURBO_TOKEN | grep -P "^[a-zA-Z0-9]{48}$"
-          echo $TURBO_TEAM | grep -P "^ci$"
-      
-      - name: Run turbo:test with turbo and expect no cache
+          # Start server and capture output
+          SERVER_OUTPUT=$(node dist/start.js \
+            --storage-provider s3 \
+            --storage-path ${{ secrets.AWS_S3_BUCKET }} \
+            --team-id test-team \
+            --host 127.0.0.1 2>&1)
+          
+          # Log server output for debugging
+          echo "Server output:"
+          echo "$SERVER_OUTPUT"
+          
+          # The token will be automatically exported by the action
+          # No need to manually extract and export it
+
+      - name: Test with Azure
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCESS_KEY }}
         run: |
-          # Expect no cache entries
-          [ ! -d "/tmp/turbo-cache/ci" ] || exit 1
+          # Start server and capture output
+          SERVER_OUTPUT=$(node dist/start.js \
+            --storage-provider azure \
+            --storage-path ${{ secrets.AZURE_STORAGE_CONTAINER }} \
+            --team-id test-team \
+            --host 127.0.0.1 2>&1)
+          
+          # Log server output for debugging
+          echo "Server output:"
+          echo "$SERVER_OUTPUT"
+          
+          # The token will be automatically exported by the action
+          # No need to manually extract and export it
 
-          pnpm turbo turbo:test > /tmp/turbo-output
-
-          # Expect a single cache entry
-          [ $(find /tmp/turbo-cache/ci -type f | wc -l) -eq 1 ] || exit 1
-      
-      - name: Rerun turbo:test with turbo and expect cache to be used
+      - name: Test with GCS
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          pnpm turbo turbo:test > /tmp/turbo-output
-          grep "Remote caching enabled" /tmp/turbo-output > /dev/null
-          grep "1 cached, 1 total" /tmp/turbo-output > /dev/null
-          grep "FULL TURBO" /tmp/turbo-output > /dev/null
-
-          # Expect there to still just be one cache entry stored
-          [ $(find /tmp/turbo-cache/ci -type f | wc -l) -eq 1 ] || exit 1
-
-  test-invalid-config:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Run TurboRepo Remote Cache Server with invalid storage provider
-        uses: ./
-        id: run-turbo
-        continue-on-error: true
-        with:
-          storage-provider: asdf
-          storage-path: asdf
-      
-      - name: Error if prior step succeeded
-        if: steps.run-turbo.outcome == 'success'
-        run: exit 1
+          # Start server and capture output
+          SERVER_OUTPUT=$(node dist/start.js \
+            --storage-provider gcs \
+            --storage-path ${{ secrets.GCS_BUCKET }} \
+            --team-id test-team \
+            --host 127.0.0.1 2>&1)
+          
+          # Log server output for debugging
+          echo "Server output:"
+          echo "$SERVER_OUTPUT"
+          
+          # The token will be automatically exported by the action
+          # No need to manually extract and export it

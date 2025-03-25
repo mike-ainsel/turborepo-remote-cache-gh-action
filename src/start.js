@@ -78,6 +78,7 @@ async function main() {
           STORAGE_PROVIDER: storageProvider,
           STORAGE_PATH: storagePath,
           TURBO_TEAM: teamId,
+          LOG_LEVEL: 'debug', // Enable debug logging
         },
       },
     );
@@ -88,8 +89,19 @@ async function main() {
       process.exit(1);
     });
 
-    subprocess.stdout?.on('data', (data) => logger.debug('Server stdout', { data: data.toString() }));
-    subprocess.stderr?.on('data', (data) => logger.debug('Server stderr', { data: data.toString() }));
+    // Capture server output for token extraction
+    let serverOutput = '';
+    subprocess.stdout?.on('data', (data) => {
+      const output = data.toString();
+      serverOutput += output;
+      logger.debug('Server stdout', { data: output });
+    });
+    subprocess.stderr?.on('data', (data) => {
+      const output = data.toString();
+      serverOutput += output;
+      logger.debug('Server stderr', { data: output });
+    });
+
     const pid = subprocess.pid?.toString();
 
     try {
@@ -102,10 +114,30 @@ async function main() {
       });
       saveState('pid', subprocess.pid?.toString());
 
+      // Extract token from server output if not provided
+      let finalToken = token;
+      if (!finalToken) {
+        const tokenMatch = serverOutput.match(/TURBO_TOKEN=([^\s]+)/);
+        if (tokenMatch) {
+          finalToken = tokenMatch[1];
+          logger.info('Using generated token', { token: finalToken });
+        }
+      }
+
       logger.debug('Export environment variables...');
       exportVariable('TURBO_API', `http://${host}:${port}`);
-      exportVariable('TURBO_TOKEN', token);
+      exportVariable('TURBO_TOKEN', finalToken);
       exportVariable('TURBO_TEAM', teamId);
+
+      // Log server configuration for debugging
+      logger.info('Server configuration', {
+        host,
+        port,
+        storageProvider,
+        storagePath,
+        teamId,
+        hasToken: !!finalToken,
+      });
 
       process.on('SIGTERM', async () => {
         if (subprocess.pid) {

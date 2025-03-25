@@ -1,28 +1,27 @@
-name: "TurboRepo Remote Cache Server"
-description: "Runs a TurboRepo remote cache server based on ducktors/turborepo-remote-cache."
-author: trappar
+name: 'Turbo Remote Cache'
+description: 'GitHub Action for Turborepo Remote Cache'
+author: 'Vladimir'
 branding:
-  icon: server
-  color: blue
+  icon: 'zap'
+  color: 'blue'
 inputs:
   storage-provider:
-    description: "Possible values are s3, google-cloud-storage, or azure-blob-storage. Local storage is technically supported but is useless."
+    description: 'Storage provider (s3, azure, gcs)'
     required: true
   storage-path:
-    description: "The name of s3, google-cloud-storage, or azure-blob-storage bucket."
+    description: 'Storage path (e.g. bucket name for S3)'
     required: true
   team-id:
-    description: "Sets the TURBO_TEAM env variable, which controls the directory where cache entries will be saved."
-    required: false
-    default: "ci"
+    description: 'Turborepo team ID'
+    required: true
   host:
-    description: "Used to set the TURBO_API env variable."
+    description: 'Host to bind the server to'
     required: false
-    default: "0.0.0.0"
+    default: '127.0.0.1'
   port:
-    description: "Sets the port the server will listen on, and is added to the end of the TURBO_API env variable."
+    description: 'Port to bind the server to'
     required: false
 runs:
-  using: "node20"
-  main: "dist/start/index.js"
-  post: "dist/post/index.js"
+  using: 'node20'
+  main: 'dist/start.js'
+  post: 'dist/stop.js'
