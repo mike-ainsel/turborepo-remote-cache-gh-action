@@ -21,9 +21,6 @@ inputs:
   port:
     description: 'Port to bind the server to'
     required: false
-  token:
-    description: 'Turborepo token'
-    required: true
 runs:
   using: 'node20'
   main: 'dist/start/index.js'
