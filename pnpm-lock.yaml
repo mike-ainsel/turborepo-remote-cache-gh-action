@@ -37,7 +37,7 @@ importers:
         specifier: ^2.5.2
         version: 2.5.2
       turborepo-remote-cache:
-        specifier: ^2.5.0
+        specifier: ^2.3.9
         version: 2.5.0
 
 packages:
@@ -1825,10 +1825,6 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
-    hasBin: true
-
-  uuid@9.0.0:
-    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
     hasBin: true
 
   uuid@9.0.1:
@@ -4213,7 +4209,7 @@ snapshots:
       https-proxy-agent: 5.0.1
       node-fetch: 2.6.9
       stream-events: 1.0.5
-      uuid: 9.0.0
+      uuid: 9.0.1
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -4314,8 +4310,6 @@ snapshots:
   uuid-parse@1.1.0: {}
 
   uuid@8.3.2: {}
-
-  uuid@9.0.0: {}
 
   uuid@9.0.1: {}
 
