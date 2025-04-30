@@ -6,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Set up test environment variables
 process.env.STORAGE_PROVIDER = 's3';
-process.env.STORAGE_PATH = 'milab-usea1-prod-data-s3-turborepo-cache';
+process.env.STORAGE_PATH = 'milab-euce1-prod-data-s3-turborepo-cache';
 process.env.HOST = '0.0.0.0';
 process.env.PORT = '9090';
 process.env.TURBO_TOKEN = 'b2c7602c6296ec41c5c59382978db83bd004a5b157d934a3a56430197484f1d6';

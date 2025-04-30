@@ -37,7 +37,7 @@ importers:
         specifier: ^2.5.2
         version: 2.5.2
       turborepo-remote-cache:
-        specifier: ^2.3.9
+        specifier: ^2.5.0
         version: 2.5.0
 
 packages:
