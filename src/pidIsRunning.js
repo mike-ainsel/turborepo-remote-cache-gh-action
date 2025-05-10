@@ -1,4 +1,4 @@
-export function pidIsRunning(pid: number) {
+export function pidIsRunning(pid) {
   try {
     process.kill(pid, 0);
     return true;
